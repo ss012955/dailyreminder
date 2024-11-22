@@ -223,6 +223,7 @@ public class MainActivity extends AppCompatActivity {
         if (position >= 0 && position < reminders.size()) {
             reminders.remove(position);
             adapter.notifyItemRemoved(position);
+            adapter.notifyItemRangeChanged(position, reminders.size());
         }
     }
 
