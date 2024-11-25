@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -35,12 +36,12 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> addReminderLauncher;
     private ActivityResultLauncher<Intent> editReminderLauncher;
     private static final String CHANNEL_ID = "daily_reminders";
-
+    private ReminderDatabaseHelper dbHelper;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        dbHelper = new ReminderDatabaseHelper(this);
         checkPermissions();
         createNotificationChannel();
         initializeUI();
@@ -75,13 +76,20 @@ public class MainActivity extends AppCompatActivity {
     private void initializeUI() {
         RecyclerView rvReminders = findViewById(R.id.rvReminders);
         rvReminders.setLayoutManager(new LinearLayoutManager(this));
-
+        ReminderDatabaseHelper dbHelper = new ReminderDatabaseHelper(this);
         reminders = new ArrayList<>();
-        reminders.add(new Reminder(1, "Meeting", "Discuss project updates", "10:00 AM"));
-        reminders.add(new Reminder(2, "Workout", "Morning exercise session", "6:30 AM"));
-        for (Reminder reminder : reminders) {
-            Log.d("MainActivity", "Initialized reminder with ID: " + reminder.getId());
+        // Load reminders from the database
+        Cursor cursor = dbHelper.getAllReminders();
+        while (cursor.moveToNext()) {
+            int id = cursor.getInt(cursor.getColumnIndexOrThrow(ReminderDatabaseHelper.COLUMN_ID));
+            String title = cursor.getString(cursor.getColumnIndexOrThrow(ReminderDatabaseHelper.COLUMN_TITLE));
+            String description = cursor.getString(cursor.getColumnIndexOrThrow(ReminderDatabaseHelper.COLUMN_DESCRIPTION));
+            String time = cursor.getString(cursor.getColumnIndexOrThrow(ReminderDatabaseHelper.COLUMN_TIME));
+
+            reminders.add(new Reminder(id, title, description, time));
         }
+        cursor.close();
+
         adapter = new ReminderAdapter(reminders, new ReminderAdapter.OnReminderClickListener() {
             @Override
             public void onReminderClick(Reminder reminder) {
@@ -110,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
         fabAddReminder.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, activity_add_reminder.class);
             addReminderLauncher.launch(intent);
+
         });
     }
 
@@ -122,6 +131,13 @@ public class MainActivity extends AppCompatActivity {
                 result -> {
                     if (result.getResultCode() == RESULT_OK && result.getData() != null) {
                         Reminder newReminder = (Reminder) result.getData().getSerializableExtra("updatedReminder");
+                        // Add to database
+                        long newId = dbHelper.addReminder(
+                                newReminder.getTitle(),
+                                newReminder.getDescription(),
+                                newReminder.getTime()
+                        );
+                        newReminder.setId((int) newId);
                         reminders.add(newReminder);
                         adapter.notifyItemInserted(reminders.size() - 1);
                         scheduleNotification(newReminder);
@@ -136,6 +152,7 @@ public class MainActivity extends AppCompatActivity {
                         Reminder updatedReminder = (Reminder) result.getData().getSerializableExtra("updatedReminder");
                         int position = result.getData().getIntExtra("position", -1);
                         if (position >= 0 && position < reminders.size()) {
+                            dbHelper.updateReminder(updatedReminder.getId(), updatedReminder.getTitle(), updatedReminder.getDescription(), updatedReminder.getTime());
                             cancelScheduledNotification(reminders.get(position));
                             reminders.set(position, updatedReminder);
                             adapter.notifyItemChanged(position);
@@ -221,9 +238,11 @@ public class MainActivity extends AppCompatActivity {
      */
     private void removeReminderByPosition(int position) {
         if (position >= 0 && position < reminders.size()) {
+            dbHelper.deleteReminder(reminders.get(position).getId());
             reminders.remove(position);
             adapter.notifyItemRemoved(position);
             adapter.notifyItemRangeChanged(position, reminders.size());
+            cancelNotification(reminders.get(position).getId());
         }
     }
 
@@ -234,8 +253,10 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < reminders.size(); i++) {
             Log.d("MainActivity", "Checking reminder at position " + i + " with ID: " + reminders.get(i).getId());
             if (reminders.get(i).getId() == reminderId) {
+                dbHelper.deleteReminder(reminderId);
                 reminders.remove(i);
                 adapter.notifyItemRemoved(i);
+                cancelNotification(reminderId);
                 Log.d("MainActivity", "Removed reminder with ID: " + reminderId);
                 return;
             }
@@ -252,6 +273,7 @@ public class MainActivity extends AppCompatActivity {
             if (reminder.getId() == reminderId) {
                 reminder.setCompleted(true);
                 adapter.notifyDataSetChanged();
+                cancelNotification(reminderId);
                 Log.d("MainActivity", "Marked reminder with ID " + reminderId + " as completed.");
                 return;
 
@@ -284,20 +306,32 @@ public class MainActivity extends AppCompatActivity {
      */
     private void cancelScheduledNotification(Reminder reminder) {
         AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(this, ReminderBroadcastReceiver.class);
 
+        // Create the same Intent used for scheduling
+        Intent intent = new Intent(this, ReminderBroadcastReceiver.class);
+        intent.putExtra("title", reminder.getTitle());
+        intent.putExtra("description", reminder.getDescription());
+        intent.putExtra("reminderId", reminder.getId());
+
+        // Use the same unique ID for the PendingIntent
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 this,
-                reminder.hashCode(),
+                reminder.getId(), // Must match the ID used when scheduling
                 intent,
                 PendingIntent.FLAG_IMMUTABLE
         );
 
         if (alarmManager != null) {
-            alarmManager.cancel(pendingIntent);
+            alarmManager.cancel(pendingIntent); // Cancel the scheduled alarm
         }
     }
 
+    private void cancelNotification(int reminderId) {
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager != null) {
+            notificationManager.cancel(reminderId); // Use reminder ID as the notification ID
+        }
+    }
     @Override
     protected void onDestroy() {
         super.onDestroy();

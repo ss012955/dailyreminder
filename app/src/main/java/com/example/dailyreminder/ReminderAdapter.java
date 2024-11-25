@@ -18,7 +18,7 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.Remind
 
     private List<Reminder> reminderList;
     private OnReminderClickListener listener;
-
+    private ReminderDatabaseHelper dbHelper;
     public ReminderAdapter(List<Reminder> reminderList, OnReminderClickListener listener) {
         this.reminderList = reminderList;
         this.listener = listener;
@@ -55,6 +55,7 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.Remind
         // Update completed state on checkbox change
         holder.checkBoxCompleted.setOnCheckedChangeListener((buttonView, isChecked) -> {
             reminder.setCompleted(isChecked);
+            dbHelper.updateReminder(reminder.getId(), reminder.getTitle(), reminder.getDescription(), reminder.getTime());
             if (isChecked) {
                 holder.tvReminderTitle.setPaintFlags(holder.tvReminderTitle.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
                 holder.tvReminderDescription.setPaintFlags(holder.tvReminderDescription.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
