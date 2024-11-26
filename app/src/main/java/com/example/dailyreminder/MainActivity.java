@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -46,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
         createNotificationChannel();
         initializeUI();
         setupActivityResultLaunchers();
-
         // Register Broadcast Receiver
         registerReminderBroadcastReceiver();
     }
@@ -93,7 +93,6 @@ public class MainActivity extends AppCompatActivity {
         adapter = new ReminderAdapter(this, reminders, new ReminderAdapter.OnReminderClickListener() {
             @Override
             public void onReminderClick(Reminder reminder) {
-                Log.d("MainActivity", "Clicked reminder with ID: " + reminder.getId());
                 Toast.makeText(MainActivity.this, "Reminder: " + reminder.getTitle(), Toast.LENGTH_SHORT).show();
             }
 
@@ -153,8 +152,8 @@ public class MainActivity extends AppCompatActivity {
                         Reminder updatedReminder = (Reminder) result.getData().getSerializableExtra("updatedReminder");
                         int position = result.getData().getIntExtra("position", -1);
                         if (position >= 0 && position < reminders.size()) {
-                            dbHelper.updateReminder(updatedReminder.getId(), updatedReminder.getTitle(), updatedReminder.getDescription(), updatedReminder.getTime(), updatedReminder.isCompleted());
                             cancelScheduledNotification(reminders.get(position));
+                            dbHelper.updateReminder(updatedReminder.getId(), updatedReminder.getTitle(), updatedReminder.getDescription(), updatedReminder.getTime(), updatedReminder.isCompleted());
                             reminders.set(position, updatedReminder);
                             adapter.notifyItemChanged(position);
                             scheduleNotification(updatedReminder);
@@ -194,7 +193,6 @@ public class MainActivity extends AppCompatActivity {
             calendar.set(Calendar.HOUR_OF_DAY, hour);
             calendar.set(Calendar.MINUTE, minute);
             calendar.set(Calendar.SECOND, 0);
-
             if (alarmManager != null) {
                 long triggerTime = calendar.getTimeInMillis();
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
@@ -239,11 +237,11 @@ public class MainActivity extends AppCompatActivity {
      */
     private void removeReminderByPosition(int position) {
         if (position >= 0 && position < reminders.size()) {
+            cancelNotification(reminders.get(position).getId());
             dbHelper.deleteReminder(reminders.get(position).getId());
             reminders.remove(position);
             adapter.notifyItemRemoved(position);
             adapter.notifyItemRangeChanged(position, reminders.size());
-            cancelNotification(reminders.get(position).getId());
         }
     }
 
@@ -254,10 +252,10 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < reminders.size(); i++) {
             Log.d("MainActivity", "Checking reminder at position " + i + " with ID: " + reminders.get(i).getId());
             if (reminders.get(i).getId() == reminderId) {
+                cancelNotification(reminderId);
                 dbHelper.deleteReminder(reminderId);
                 reminders.remove(i);
                 adapter.notifyItemRemoved(i);
-                cancelNotification(reminderId);
                 Log.d("MainActivity", "Removed reminder with ID: " + reminderId);
                 return;
             }
@@ -272,10 +270,22 @@ public class MainActivity extends AppCompatActivity {
         for (Reminder reminder : reminders) {
             Log.d("MainActivity", "Checking reminder with ID: " + reminder.getId());
             if (reminder.getId() == reminderId) {
-                reminder.setCompleted(true);
-                adapter.notifyDataSetChanged();
                 cancelNotification(reminderId);
-                Log.d("MainActivity", "Marked reminder with ID " + reminderId + " as completed.");
+                // Update the reminder in the database to mark it as completed
+                Reminder updatedReminder = dbHelper.updateReminder(reminderId, reminder.getTitle(),
+                        reminder.getDescription(), reminder.getTime(), true);  // Set 'completed' to true
+
+                if (updatedReminder != null) {
+                    // Update the reminder in the list
+                    reminder.setCompleted(true);
+                    updatedReminder.setCompleted(true);
+                    // Notify the adapter about the update
+                    adapter.notifyDataSetChanged();
+                    Log.d("MainActivity", "Reminder " + reminder.isCompleted() + " as completed.");
+                    Log.d("MainActivity", "Marked reminder with ID " + reminderId + " as completed.");
+                } else {
+                    Log.d("MainActivity", "Failed to update reminder with ID " + reminderId);
+                }
                 return;
 
             }

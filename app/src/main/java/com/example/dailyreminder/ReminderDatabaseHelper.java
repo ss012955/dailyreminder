@@ -5,12 +5,12 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.widget.Toast;
 
 public class ReminderDatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "reminders.db";
     private static final int DATABASE_VERSION = 2;
-
     public static final String TABLE_NAME = "reminders";
     public static final String COLUMN_ID = "_id";
     public static final String COLUMN_TITLE = "title";
@@ -32,8 +32,6 @@ public class ReminderDatabaseHelper extends SQLiteOpenHelper {
                 COLUMN_COMPLETED + " INTEGER DEFAULT 0)";
         db.execSQL(createTable);
     }
-
-
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion < 2) { // Add the `completed` column if upgrading from version 1
@@ -57,13 +55,12 @@ public class ReminderDatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DESCRIPTION, description);
         values.put(COLUMN_TIME, time);
         values.put(COLUMN_COMPLETED, completed ? 1 : 0);
-
         // Update the reminder with the specified ID
         int rowsAffected = db.update(TABLE_NAME, values, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
 
         if (rowsAffected > 0) {
             // Return the updated reminder object if the update was successful
-            return new Reminder(id, title, description, time, false);
+            return new Reminder(id, title, description, time, completed);
         } else {
             return null;
         }
