@@ -9,7 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class ReminderDatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "reminders.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     public static final String TABLE_NAME = "reminders";
     public static final String COLUMN_ID = "_id";
@@ -33,34 +33,37 @@ public class ReminderDatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(createTable);
     }
 
+
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
-        onCreate(db);
+        if (oldVersion < 2) { // Add the `completed` column if upgrading from version 1
+            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COLUMN_COMPLETED + " INTEGER DEFAULT 0");
+        }
     }
-
     // CRUD Operations
-    public long addReminder(String title, String description, String time) {
+    public long addReminder(String title, String description, String time, boolean completed) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COLUMN_TITLE, title);
         values.put(COLUMN_DESCRIPTION, description);
         values.put(COLUMN_TIME, time);
+        values.put(COLUMN_COMPLETED, completed ? 1 : 0);
         return db.insert(TABLE_NAME, null, values);
     }
-    public Reminder updateReminder(int id, String title, String description, String time) {
+    public Reminder updateReminder(int id, String title, String description, String time,  boolean completed) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COLUMN_TITLE, title);
         values.put(COLUMN_DESCRIPTION, description);
         values.put(COLUMN_TIME, time);
+        values.put(COLUMN_COMPLETED, completed ? 1 : 0);
 
         // Update the reminder with the specified ID
         int rowsAffected = db.update(TABLE_NAME, values, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
 
         if (rowsAffected > 0) {
             // Return the updated reminder object if the update was successful
-            return new Reminder(id, title, description, time);
+            return new Reminder(id, title, description, time, false);
         } else {
             return null;
         }

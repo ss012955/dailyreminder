@@ -85,12 +85,12 @@ public class MainActivity extends AppCompatActivity {
             String title = cursor.getString(cursor.getColumnIndexOrThrow(ReminderDatabaseHelper.COLUMN_TITLE));
             String description = cursor.getString(cursor.getColumnIndexOrThrow(ReminderDatabaseHelper.COLUMN_DESCRIPTION));
             String time = cursor.getString(cursor.getColumnIndexOrThrow(ReminderDatabaseHelper.COLUMN_TIME));
-
-            reminders.add(new Reminder(id, title, description, time));
+            int completed = cursor.getInt(cursor.getColumnIndexOrThrow(ReminderDatabaseHelper.COLUMN_COMPLETED));
+            reminders.add(new Reminder(id, title, description, time,completed == 1));
         }
         cursor.close();
 
-        adapter = new ReminderAdapter(reminders, new ReminderAdapter.OnReminderClickListener() {
+        adapter = new ReminderAdapter(this, reminders, new ReminderAdapter.OnReminderClickListener() {
             @Override
             public void onReminderClick(Reminder reminder) {
                 Log.d("MainActivity", "Clicked reminder with ID: " + reminder.getId());
@@ -135,7 +135,8 @@ public class MainActivity extends AppCompatActivity {
                         long newId = dbHelper.addReminder(
                                 newReminder.getTitle(),
                                 newReminder.getDescription(),
-                                newReminder.getTime()
+                                newReminder.getTime(),
+                                newReminder.isCompleted()
                         );
                         newReminder.setId((int) newId);
                         reminders.add(newReminder);
@@ -152,7 +153,7 @@ public class MainActivity extends AppCompatActivity {
                         Reminder updatedReminder = (Reminder) result.getData().getSerializableExtra("updatedReminder");
                         int position = result.getData().getIntExtra("position", -1);
                         if (position >= 0 && position < reminders.size()) {
-                            dbHelper.updateReminder(updatedReminder.getId(), updatedReminder.getTitle(), updatedReminder.getDescription(), updatedReminder.getTime());
+                            dbHelper.updateReminder(updatedReminder.getId(), updatedReminder.getTitle(), updatedReminder.getDescription(), updatedReminder.getTime(), updatedReminder.isCompleted());
                             cancelScheduledNotification(reminders.get(position));
                             reminders.set(position, updatedReminder);
                             adapter.notifyItemChanged(position);

@@ -1,6 +1,7 @@
 package com.example.dailyreminder;
 
 
+import android.content.Context;
 import android.graphics.Paint;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,9 +20,10 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.Remind
     private List<Reminder> reminderList;
     private OnReminderClickListener listener;
     private ReminderDatabaseHelper dbHelper;
-    public ReminderAdapter(List<Reminder> reminderList, OnReminderClickListener listener) {
+    public ReminderAdapter(Context context, List<Reminder> reminderList, OnReminderClickListener listener) {
         this.reminderList = reminderList;
         this.listener = listener;
+        this.dbHelper = new ReminderDatabaseHelper(context);
     }
 
     @Override
@@ -55,7 +57,7 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.Remind
         // Update completed state on checkbox change
         holder.checkBoxCompleted.setOnCheckedChangeListener((buttonView, isChecked) -> {
             reminder.setCompleted(isChecked);
-            dbHelper.updateReminder(reminder.getId(), reminder.getTitle(), reminder.getDescription(), reminder.getTime());
+            dbHelper.updateReminder(reminder.getId(), reminder.getTitle(), reminder.getDescription(), reminder.getTime(), reminder.isCompleted());
             if (isChecked) {
                 holder.tvReminderTitle.setPaintFlags(holder.tvReminderTitle.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
                 holder.tvReminderDescription.setPaintFlags(holder.tvReminderDescription.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);

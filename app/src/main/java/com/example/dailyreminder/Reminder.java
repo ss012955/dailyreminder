@@ -9,7 +9,7 @@ public class Reminder implements Serializable {
     private String time;
     private boolean completed;
 
-    public Reminder(int id, String title, String description, String time) {
+    public Reminder(int id, String title, String description, String time, boolean completed) {
         this.id = id;
         this.title = title;
         this.description = description;

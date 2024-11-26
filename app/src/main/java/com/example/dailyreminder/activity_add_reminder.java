@@ -82,7 +82,7 @@ public class activity_add_reminder extends AppCompatActivity {
             int id = (reminder != null) ? reminder.getId() : generateNewId();  // Generate a new ID if it's a new reminder
 
             // Create or update reminder
-            Reminder updatedReminder = new Reminder(id, title, description, time);
+            Reminder updatedReminder = new Reminder(id, title, description, time, false);
 
             // Return the updated reminder and position to MainActivity
             Intent resultIntent = new Intent();
