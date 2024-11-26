@@ -193,6 +193,16 @@ public class MainActivity extends AppCompatActivity {
             calendar.set(Calendar.HOUR_OF_DAY, hour);
             calendar.set(Calendar.MINUTE, minute);
             calendar.set(Calendar.SECOND, 0);
+
+            long currentTime = System.currentTimeMillis();
+            if (calendar.getTimeInMillis() <= currentTime) {
+                // Move to the next day
+                calendar.add(Calendar.DAY_OF_YEAR, 1);
+                Log.d("MainActivity", "Reminder time is in the past, moving to next day. New time: " + calendar.getTime());
+            } else {
+                Log.d("MainActivity", "Scheduled reminder time: " + calendar.getTime());
+            }
+
             if (alarmManager != null) {
                 long triggerTime = calendar.getTimeInMillis();
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
